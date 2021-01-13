@@ -4,7 +4,7 @@ const { validationResult } = require('express-validator');
 const User = require('../models/user');
 const { genAccessToken, genRefreshToken, verifyRefreshToken } = require('../helpers/jwt-helper');
 
-exports.signUp = (req, res, next) => {
+exports.signUp = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty) {
     const error = new Error('Validation failed!');
@@ -15,27 +15,24 @@ exports.signUp = (req, res, next) => {
   const name = req.body.name;
   const email = req.body.email;
   const password = req.body.password;
-  bcrypt.hash(password, 12)
-  .then(hashedPw => {
+  try {
+    const hashedPw = await bcrypt.hash(password, 12);
     const user = new User({
       name: name,
       email: email,
       password: hashedPw
     });
-    return user.save();
-  })
-  .then(savedUser => {
-    res.status(201).json({ message: 'User created', userId: savedUser._id});
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+    user.save();
+    res.status(201).json({ message: 'User created', userId: user._id});
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
 
-exports.logIn = (req, res, next) => {
+exports.logIn = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty) {
     const error = new Error('Validation failed!');
@@ -46,17 +43,15 @@ exports.logIn = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
   let loadedUser;
-  User.findOne({ email: email })
-  .then(user => {
+  try {
+    const user = await User.findOne({ email: email });
     if (!user) {
       const error = new Error('This email could not be found!');
       error.statusCode = 401;
       throw error;
     }
     loadedUser = user;
-    return bcrypt.compare(password, user.password);
-  })
-  .then(isEqual => {
+    const isEqual = await bcrypt.compare(password, user.password);
     if (!isEqual) {
       const error = new Error('Wrong Password!');
       error.statusCode = 401;
@@ -72,16 +67,15 @@ exports.logIn = (req, res, next) => {
       refreshToken: refreshToken,
       userId: loadedUser._id.toString()
     });
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
 
-exports.refreshToken = (req, res, next) => {
+exports.refreshToken = async (req, res, next) => {
   let savedUser;
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -90,8 +84,8 @@ exports.refreshToken = (req, res, next) => {
     throw error;
   }
   const userId = verifyRefreshToken(refreshToken);
-  User.findOne({_id: userId})
-  .then(user => {
+  try {
+    const user = await User.findOne({_id: userId});
     if (!user) {
       const error = new Error('No such User found!');
       error.statusCode = 401;
@@ -114,34 +108,32 @@ exports.refreshToken = (req, res, next) => {
       refreshToken: refToken,
       userId: savedUser._id 
     });
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
 
-exports.getUserStatus = (req, res, next) => {
-  User.findById(req.userId)
-  .then(user => {
+exports.getUserStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId);
     if (!user) {
       const error = new Error('User not found!');
       error.statusCode = 404;
       throw error;
     }
     res.status(200).json({ status: user.status });
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
 
-exports.updateUserStatus = (req, res, next) => {
+exports.updateUserStatus = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty) {
     const error = new Error('Validation failed!');
@@ -150,45 +142,39 @@ exports.updateUserStatus = (req, res, next) => {
     throw error;
   }
   const newStatus = req.body.status;
-  User.findById(req.userId)
-  .then(user => {
+  try {
+    const user = await User.findById(req.userId);
     if (!user) {
       const error = new Error('User not found!');
       error.statusCode = 404;
       throw error;
     }
     user.status = newStatus;
-    return user.save();
-  })
-  .then(result => {
+    user.save();
     res.status(201).json({ message: 'User Status Updated!' });
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
 
-exports.logOut = (req, res, next) => {
-  let savedUser;
-  User.findOne({_id: req.userId})
-  .then(user => {
-    if (!user) {
+exports.logOut = async (req, res, next) => {
+  try {
+    const savedUser = await User.findOne({_id: req.userId});
+    if (!savedUser) {
       const error = new Error('User not found!');
       error.statusCode = 401;
       throw error;
     }
-    savedUser = user;
     savedUser.refreshToken = null;
     savedUser.save();
     res.status(200).json({ accessToken: {}, refreshToken: {}, message: 'Logged Out successfully!', userId: req.userId});
-  })
-  .catch(err => {
-    if (!err.statusCode) {
-      err.statusCode = 500;
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
     }
-    next(err);
-  });
+    next(error);
+  };
 };
