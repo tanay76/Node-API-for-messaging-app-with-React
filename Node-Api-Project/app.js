@@ -1,4 +1,5 @@
 const path = require('path');
+const http = require('http');
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -55,10 +56,14 @@ app.use((error, req, res, next) => {
   res.status(status).json({ message: message, data: data });
 });
 
-mongoose.connect(MONGODB_URI)
-.then(result => {
-  app.listen(4000, () => {
-    console.log('App running on port 4000');
-  });
-})
-.catch(err => console.log(err));
+mongoose
+  .connect(MONGODB_URI)
+  .then(result => {
+    const server = app.listen(4000);
+    const io = require('./socket').init(server);
+    console.log('Server listening on 4000')
+    io.on('connection', socket => {
+      console.log('Client connected');
+    });
+  })
+  .catch(err => console.log(err));
