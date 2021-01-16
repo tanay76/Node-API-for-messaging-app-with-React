@@ -52,7 +52,7 @@ exports.createPost = async (req, res, next) => {
   if (!req.file) {
     const error = new Error('No image provided!');
     error.statusCode = 422;
-    console.log('63: File not found');
+    // console.log('63: File not found');
     throw error;
   }
   const title = req.body.title;
@@ -64,12 +64,12 @@ exports.createPost = async (req, res, next) => {
     imageUrl: imageUrl,
     creator: req.userId
   });
-  post.save();
+  await post.save();
   try {
     const user = await User.findById(req.userId);
     creator = user;
     user.posts.push(post);
-    user.save();
+    await user.save();
     getIO().emit('posts', { action: 'create', post: {...post._doc, creator: {_id: user._id, name: user.name }} });
     res.status(201).json(
       {

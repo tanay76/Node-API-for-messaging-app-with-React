@@ -22,8 +22,8 @@ exports.signUp = async (req, res, next) => {
       email: email,
       password: hashedPw
     });
-    user.save();
-    res.status(201).json({ message: 'User created', userId: user._id});
+    const newUser = await user.save();
+    res.status(201).json({ message: 'User created', userId: newUser._id});
   } catch (error) {
     if (!error.statusCode) {
       error.statusCode = 500;
@@ -60,7 +60,7 @@ exports.logIn = async (req, res, next) => {
     const accessToken = genAccessToken(loadedUser._id, loadedUser.email);
     const refreshToken = genRefreshToken(loadedUser._id, loadedUser.email);
     loadedUser.refreshToken = refreshToken;
-    loadedUser.save();
+    await loadedUser.save();
     res.status(200).json({
       token: accessToken,
       expiresIn: '1800s',
@@ -101,7 +101,7 @@ exports.refreshToken = async (req, res, next) => {
     const accessToken = genAccessToken(userId, email);
     const refToken = genRefreshToken(userId, email);
     savedUser.refreshToken = refToken;
-    savedUser.save();
+    await savedUser.save();
     return res.status(200).json({
       token: accessToken,
       expiresIn: '1800s',
@@ -150,7 +150,7 @@ exports.updateUserStatus = async (req, res, next) => {
       throw error;
     }
     user.status = newStatus;
-    user.save();
+    await user.save();
     res.status(201).json({ message: 'User Status Updated!' });
   } catch (error) {
     if (!error.statusCode) {
@@ -169,7 +169,7 @@ exports.logOut = async (req, res, next) => {
       throw error;
     }
     savedUser.refreshToken = null;
-    savedUser.save();
+    await savedUser.save();
     res.status(200).json({ accessToken: {}, refreshToken: {}, message: 'Logged Out successfully!', userId: req.userId});
   } catch (error) {
     if (!error.statusCode) {
